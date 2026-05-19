@@ -1,10 +1,10 @@
 terraform {
   backend "s3" {
-    bucket = "serverexamplenode-tfstated-dev-257746103804-us-east-1-an"
-    key = "state/dev/terraform.tfstate"
-    region = "us-east-1"
+    bucket         = "serverexamplenode-tfstated-dev-257746103804-us-east-1-an"
+    key            = "state/dev/terraform.tfstate"
+    region         = "us-east-1"
     dynamodb_table = "TF_STATE_LOCK_TABLE"
-    encrypt = true
+    encrypt        = true
   }
   required_providers {
     aws = {

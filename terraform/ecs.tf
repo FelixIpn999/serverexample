@@ -9,8 +9,8 @@ resource "aws_secretsmanager_secret" "db_password" {
   name = "${var.app_name}--db-password-${var.environment}"
 }
 
-resource "aws_secretsmanager_secret_version" "db_password_version"{
-  secret_id = aws_secretsmanager_secret.db_password.id
+resource "aws_secretsmanager_secret_version" "db_password_version" {
+  secret_id     = aws_secretsmanager_secret.db_password.id
   secret_string = var.db_password_secret
 }
 
@@ -45,7 +45,7 @@ resource "aws_ecs_task_definition" "app_task" {
         { name = "NODE_ENV", value = "production" },
         { name = "PORT", value = "3000" },
         { name = "LOG_LEVEL", value = "info" },
-        {name= "DB_ENGINE", value= "dynamodb"}
+        { name = "DB_ENGINE", value = "dynamodb" }
       ]
 
     }
@@ -54,14 +54,14 @@ resource "aws_ecs_task_definition" "app_task" {
 
 # El Servicio que mantiene la tarea corriendo
 resource "aws_ecs_service" "app_service" {
-  name            = "${var.app_name}-service-${var.environment}"
-  cluster         = aws_ecs_cluster.app_cluster.id
-  task_definition = aws_ecs_task_definition.app_task.arn
-  desired_count   = var.environment == "dev" ? 1 : 2
-  launch_type     = "FARGATE"
-  deployment_maximum_percent = 200
+  name                               = "${var.app_name}-service-${var.environment}"
+  cluster                            = aws_ecs_cluster.app_cluster.id
+  task_definition                    = aws_ecs_task_definition.app_task.arn
+  desired_count                      = var.environment == "dev" ? 1 : 2
+  launch_type                        = "FARGATE"
+  deployment_maximum_percent         = 200
   deployment_minimum_healthy_percent = 100
-  health_check_grace_period_seconds = 60
+  health_check_grace_period_seconds  = 60
 
   deployment_circuit_breaker {
     enable   = true

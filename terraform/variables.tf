@@ -70,17 +70,17 @@ variable "github_repo" {
 
 #variable "acm_certificate_arn" {
 #  description = "ARN del certificado ACM"
- # type        = string
+# type        = string
 #}
 
-variable "terraform_lock_table"{
+variable "terraform_lock_table" {
   description = "Nombre de la tabla DynamoDB para el bloqueo de estado de Terraform"
   type        = string
   default     = "TF_STATE_LOCK_TABLE"
 
 }
 
-variable "terraform_bucket"{
+variable "terraform_bucket" {
   description = "Nombre del bucket de Terraform"
   type        = string
   default     = "serverexamplenode-tfstated-dev-257746103804-us-east-1-an"

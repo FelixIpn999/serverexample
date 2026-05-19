@@ -187,7 +187,7 @@ resource "aws_iam_policy" "github_actions_app_policy" {
         Resource = aws_ecr_repository.app_repo.arn
       },
       {
-        Sid = "EcsDeployActions"
+        Sid    = "EcsDeployActions"
         Effect = "Allow"
         Action = [
           "ecs:DescribeTaskDefinition",
@@ -199,7 +199,7 @@ resource "aws_iam_policy" "github_actions_app_policy" {
         Resource = "*"
       },
       {
-        Sid = "AlbDescribeForSmoke"
+        Sid    = "AlbDescribeForSmoke"
         Effect = "Allow"
         Action = [
           "elasticloadbalancing:DescribeLoadBalancers",
