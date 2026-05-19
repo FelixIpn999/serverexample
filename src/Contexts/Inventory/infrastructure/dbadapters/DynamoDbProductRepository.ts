@@ -6,6 +6,7 @@ import {PutItemCommand} from "@aws-sdk/client-dynamodb";
 import {GetItemCommand} from "@aws-sdk/client-dynamodb";
 import {injectable} from "tsyringe";
 
+//Prueba DynamoDB
 @injectable()
 export class DynamoDbProductRepository implements ProductRepository {
     private readonly tableName: string;
