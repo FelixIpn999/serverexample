@@ -83,7 +83,7 @@ variable "terraform_lock_table"{
 variable "terraform_bucket"{
   description = "Nombre del bucket de Terraform"
   type        = string
-  default     = "serverexamplenode-tfstate-dev-257746103804-us-east-1-an"
+  default     = "serverexamplenode-tfstated-dev-257746103804-us-east-1-an"
 
 }
 
