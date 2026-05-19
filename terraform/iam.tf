@@ -48,6 +48,29 @@ resource "aws_iam_role_policy_attachment" "ecs_execution_secrets_attach" {
   policy_arn = aws_iam_policy.secrets_policy.arn
 }
 
+# Permite a ECS crear y escribir en CloudWatch Logs
+resource "aws_iam_policy" "cloudwatch_logs_policy" {
+  name        = "${var.app_name}-cloudwatch-logs-policy-${var.environment}"
+  description = "Allow ECS execution role to create and write CloudWatch logs"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ]
+      Effect   = "Allow"
+      Resource = "${aws_cloudwatch_log_group.ecs_logs.arn}:*"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_execution_logs_attach" {
+  role       = aws_iam_role.ecs_execution_role.name
+  policy_arn = aws_iam_policy.cloudwatch_logs_policy.arn
+}
+
 # Rol runtime de la app (Node.js dentro del contenedor)
 resource "aws_iam_role" "ecs_task_role" {
   name = "${var.app_name}-ecs-task-role-${var.environment}"

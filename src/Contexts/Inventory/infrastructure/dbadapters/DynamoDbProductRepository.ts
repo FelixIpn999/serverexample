@@ -4,10 +4,17 @@ import {ProductID} from "../../domain/valueObjects/ProductID";
 import {DynamoDBClient} from "@aws-sdk/client-dynamodb";
 import {PutItemCommand} from "@aws-sdk/client-dynamodb";
 import {GetItemCommand} from "@aws-sdk/client-dynamodb";
+import {injectable} from "tsyringe";
 
+@injectable()
 export class DynamoDbProductRepository implements ProductRepository {
+    private readonly tableName: string;
+    private readonly client: DynamoDBClient;
 
-    constructor (private dynamodbClient:DynamoDBClient){}
+    constructor() {
+        this.tableName = process.env.DYNAMODB_TABLE_NAME || 'products-table';
+        this.client = new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' });
+    }
 
     async save(product: Product): Promise<void> {
         const item = {
@@ -16,18 +23,18 @@ export class DynamoDbProductRepository implements ProductRepository {
             stock: {N: product.stock.value.toString()}
         };
 
-        await this.dynamodbClient.send(
+        await this.client.send(
             new PutItemCommand({
-                TableName: "products-table",
+                TableName: this.tableName,
                 Item: item
             })
         );
     }
 
     async search(id:ProductID): Promise<Product | null> {
-        const result = await this.dynamodbClient.send(
+        const result = await this.client.send(
             new GetItemCommand({
-                TableName: "products-table",
+                TableName: this.tableName,
                 Key: {
                     id: {S: id.value}
                 }

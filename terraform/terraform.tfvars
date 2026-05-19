@@ -7,7 +7,7 @@ aws_region  = "us-east-1"
 github_org  = "FelixIpn999"
 github_repo = "serverexample"
 
-image_tag = "latest"
+image_tag = "b4050316d3ec78fd82a2a07205f0a355a20e1dd2"
 
 #acm_certificate_arn = "arn:aws:acm:us-east-1:257746103804:certificate/5ff547ce-b0ef-49d3-86d3-ff8c0f90a8ec"
 

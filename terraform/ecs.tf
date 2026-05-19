@@ -1,7 +1,12 @@
 # El clúster lógico donde vivirá nuestro servicio
-
 resource "aws_ecs_cluster" "app_cluster" {
   name = "${var.app_name}-cluster-${var.environment}"
+}
+
+# CloudWatch Log Group para los logs del contenedor
+resource "aws_cloudwatch_log_group" "ecs_logs" {
+  name              = "/ecs/${var.app_name}-task-${var.environment}"
+  retention_in_days = 7
 }
 
 # El secreto simulado en AWS (En la vida real, lo creas manualmente o en otro módulo)
@@ -13,8 +18,6 @@ resource "aws_secretsmanager_secret_version" "db_password_version" {
   secret_id     = aws_secretsmanager_secret.db_password.id
   secret_string = var.db_password_secret
 }
-
-
 
 # Definición de la "Caja Fuerte" (Task Definition)
 resource "aws_ecs_task_definition" "app_task" {
@@ -45,12 +48,24 @@ resource "aws_ecs_task_definition" "app_task" {
         { name = "NODE_ENV", value = "production" },
         { name = "PORT", value = "3000" },
         { name = "LOG_LEVEL", value = "info" },
-        { name = "DB_ENGINE", value = "dynamodb" }
+        { name = "DB_ENGINE", value = "dynamodb" },
+        { name = "CORS_ORIGIN", value = "*" },
+        { name = "DYNAMODB_TABLE_NAME", value = aws_dynamodb_table.products.name }
       ]
 
+      # Configuración de logs en CloudWatch
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.ecs_logs.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "ecs"
+        }
+      }
     }
   ])
 }
+
 
 # El Servicio que mantiene la tarea corriendo
 resource "aws_ecs_service" "app_service" {
