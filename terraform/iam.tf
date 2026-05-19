@@ -317,9 +317,9 @@ resource "aws_iam_policy" "github_actions_infra_policy" {
         Resource = "*"
       },
       {
-        Sid    = "IamOidcRead"
-        Effect = "Allow"
-        Action = ["iam:ListOpenIDConnectProviders"]
+        Sid      = "IamOidcRead"
+        Effect   = "Allow"
+        Action   = ["iam:ListOpenIDConnectProviders"]
         Resource = "*"
       },
       {
