@@ -269,9 +269,9 @@ resource "aws_iam_policy" "github_actions_infra_policy" {
         Resource = "arn:aws:dynamodb:${var.aws_region}:*:table/${var.app_name}-*"
       },
       {
-        Sid    = "EcrListTags"
-        Effect = "Allow"
-        Action = ["ecr:ListTagsForResource"]
+        Sid      = "EcrListTags"
+        Effect   = "Allow"
+        Action   = ["ecr:ListTagsForResource"]
         Resource = "arn:aws:ecr:${var.aws_region}:*:repository/${var.app_name}-*"
       },
       {
