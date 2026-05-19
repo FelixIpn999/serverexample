@@ -308,7 +308,9 @@ resource "aws_iam_policy" "github_actions_infra_policy" {
           "ec2:CreateSubnet",
           "ec2:DescribeVpcAttribute",
           "ec2:DescribeAvailabilityZones",
-          "ec2:DescribeAddresses"
+          "ec2:DescribeAddresses",
+          "ec2:DescribeInternetGateways",
+          "ec2:DescribeAddressesAttribute"
         ]
         Resource = "*"
       },
@@ -354,7 +356,9 @@ resource "aws_iam_policy" "github_actions_infra_policy" {
           "iam:GetPolicy",
           "iam:GetPolicyVersion",
           "iam:ListOpenIDConnectProviders",
-          "iam:GetOpenIDConnectProvider"
+          "iam:GetOpenIDConnectProvider",
+          "iam:ListAttachedRolePolicies",
+          "iam:ListOpenIDConnectProviders"
         ]
         Resource = [
           "arn:aws:iam::*:role/${var.app_name}-*",
@@ -370,7 +374,10 @@ resource "aws_iam_policy" "github_actions_infra_policy" {
           "elasticloadbalancing:CreateTargetGroup",
           "elasticloadbalancing:CreateListener",
           "elasticloadbalancing:DescribeTargetGroups",
-          "elasticloadbalancing:DescribeListeners"
+          "elasticloadbalancing:DescribeListeners",
+          "elasticloadbalancing:DescribeLoadBalancerAttributes",
+          "elasticloadbalancing:DescribeTargetGroupAttributes",
+          "elasticloadbalancing:DescribeTags"
         ]
         Resource = "arn:aws:elasticloadbalancing:${var.aws_region}:*:*"
       },
@@ -381,7 +388,8 @@ resource "aws_iam_policy" "github_actions_infra_policy" {
           "dynamodb:CreateTable",
           "dynamodb:DescribeTable",
           "dynamodb:UpdateTable",
-          "dynamodb:ListTables"
+          "dynamodb:ListTables",
+          "dynamodb:DescribeTimeToLive"
         ]
         Resource = "arn:aws:dynamodb:${var.aws_region}:*:table/${var.app_name}-*"
       },
