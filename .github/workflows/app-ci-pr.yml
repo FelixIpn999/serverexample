@@ -1,0 +1,34 @@
+name: app-ci-pr
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "package.json"
+      - "tsconfig.json"
+      - "jest.config.js"
+jobs:
+  test-build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run lint --if-present || echo "No lint script found"
+      - run: npm run typecheck --if-present || echo "No typecheck script found"
+
+      - run: npm test -- --runInBand --coverage
+      - run: npm run build
+      - run: npm audit --audit-level=moderate || echo "Audit Warnings found"
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-pr-${{ github.event.pull_request.number }}
+          path: coverage

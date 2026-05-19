@@ -1,0 +1,143 @@
+name: app-rollout-dev
+
+on:
+  workflow_run:
+    workflows: ["app-build-push-dev"]
+    types: [completed]
+  workflow_dispatch:
+
+concurrency:
+  group: app-rollout-dev
+  cancel-in-progress: true
+
+jobs:
+  deploy-ecs:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    environment: dev
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "${{ secrets.AWS_ROLE_ARN_APP }}"
+          aws-region: "${{ vars.AWS_REGION }}"
+
+      - name: Resolve image uri from triggering commit
+        id: image
+        env:
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            IMAGE_TAG=${{ github.event.workflow_run.head_sha }}
+          else
+            IMAGE_TAG=${GITHUB_SHA}
+          fi
+          IMAGE_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "image_uri=$IMAGE_URI" >> $GITHUB_OUTPUT
+
+      - name: Download current task definition
+        id: current-task
+        run: |
+          CURRENT_TASK_DEF=$(aws ecs describe-task-definition \
+            --task-definition "${{ vars.ECS_TASK_FAMILY }}" \
+            --query "taskDefinition.taskDefinitionArn" \
+            --output text)
+          aws ecs describe-task-definition \
+            --task-definition "$CURRENT_TASK_DEF" \
+            --query taskDefinition > taskdef.json
+          echo "old_task_def_arn=$CURRENT_TASK_DEF" >> $GITHUB_OUTPUT
+
+      - name: Render next task definition
+        env:
+          IMAGE_URI: ${{ steps.image.outputs.image_uri }}
+          CONTAINER_NAME: ${{ vars.ECS_CONTAINER_NAME }}
+        run: |
+          jq --arg IMAGE "$IMAGE_URI" --arg CONTAINER "$CONTAINER_NAME" '
+            .containerDefinitions |= map(
+              if .name == $CONTAINER then .image = $IMAGE else . end
+            )
+            | del(
+                .taskDefinitionArn,
+                .revision,
+                .status,
+                .requiresAttributes,
+                .compatibilities,
+                .registeredAt,
+                .registeredBy
+              )
+          ' taskdef.json > taskdef-rendered.json
+
+      - name: Register task definition
+        id: register
+        run: |
+          TASK_DEF_ARN=$(aws ecs register-task-definition \
+            --cli-input-json file://taskdef-rendered.json \
+            --query "taskDefinition.taskDefinitionArn" \
+            --output text)
+          echo "task_def_arn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
+          echo "old_task_def_arn=${{ steps.current-task.outputs.old_task_def_arn }}" >> $GITHUB_OUTPUT
+
+      - name: Update ECS service
+        run: |
+          aws ecs update-service \
+            --cluster "${{ vars.ECS_CLUSTER_NAME }}" \
+            --service "${{ vars.ECS_SERVICE_NAME }}" \
+            --task-definition "${{ steps.register.outputs.task_def_arn }}" \
+            --force-new-deployment
+
+      - name: Wait for service stable
+        run: |
+          aws ecs wait services-stable \
+            --cluster "${{ vars.ECS_CLUSTER_NAME }}" \
+            --services "${{ vars.ECS_SERVICE_NAME }}"
+      - name: Get ALB DNS
+        id: get-alb-dns
+        run: |
+          ALB_DNS=$(aws elbv2 describe-load-balancers \
+            --names "${{ vars.ALB_NAME }}" \
+            --query "LoadBalancers[0].DNSName" \
+            --output text)
+          echo "alb_dns=$ALB_DNS" >> $GITHUB_OUTPUT
+
+      # *** SMOKE TEST ***
+      - name: Run smoke test
+        id: smoke
+        env:
+          ALB_DNS: ${{ steps.get-alb-dns.outputs.alb_dns }}
+        run: |
+          echo "Testing health endpoint..."
+          for i in {1..30}; do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://$ALB_DNS/health)
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✓ Health check passed"
+              exit 0
+            fi
+            echo "Attempt $i: HTTP $HTTP_CODE, retrying..."
+            sleep 5
+          done
+          echo "✗ Health check failed after retries"
+          exit 1
+
+      # *** ROLLBACK SI SMOKE FALLA ***
+      - name: Rollback on smoke test failure
+        if: failure() && steps.smoke.outcome == 'failure'
+        env:
+          OLD_TASK_DEF_ARN: ${{ steps.register.outputs.old_task_def_arn }}
+        run: |
+          echo "Smoke test failed, rolling back..."
+          aws ecs update-service \
+            --cluster "${{ vars.ECS_CLUSTER_NAME }}" \
+            --service "${{ vars.ECS_SERVICE_NAME }}" \
+            --task-definition "$OLD_TASK_DEF_ARN" \
+            --force-new-deployment
+
+          aws ecs wait services-stable \
+            --cluster "${{ vars.ECS_CLUSTER_NAME }}" \
+            --services "${{ vars.ECS_SERVICE_NAME }}"
+
+          echo "Rollback completed"

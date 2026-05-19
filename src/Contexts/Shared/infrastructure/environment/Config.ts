@@ -24,6 +24,9 @@ export class Config{
     @IsIn(['memory', 'postgres','sqlite','dynamodb'])
     readonly dbEngine!: string;
 
+    @IsString()
+    readonly corsOrigin!: string;
+
     public constructor(){}
 
 

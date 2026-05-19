@@ -12,7 +12,7 @@ import cors from 'cors';
 import rateLimit from "express-rate-limit";
 import { PostgreSqlProductRepository} from "./Contexts/Inventory/infrastructure/dbadapters/PostgreSqlProductRepository";
 import {DynamoDbProductRepository} from "./Contexts/Inventory/infrastructure/dbadapters/DynamoDbProductRepository";
-
+import {requestMiddleware} from "./Contexts/Shared/infrastructure/logger/Logger";
 // NUEVO: Importamos nuestra clase de Configuración
 import { Config } from './Contexts/Shared/infrastructure/environment/Config';
 
@@ -30,26 +30,40 @@ const app = express();
 // 1.5 Middleares globales de seguridad
 // ==========================================
 // Levantar head limiter, cors, rate limiter, logging, body parser
+
+app.get('/health', (_req, res) => {
+    res.status(200).json({ status: 'ok' });
+});
 app.use(helmet());
 app.use(cors({
-    origin: appConfig.nodeEnv === 'production'
-    ? ['https://midominio-seguro.com']
-        : '*',
+    origin: appConfig.corsOrigin,
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.set('trust-proxy', 1);
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 100,
+    max: appConfig.nodeEnv === 'production' ? 100 : 1000,
     message: 'Too many requests from this IP, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
 });
 app.use(limiter);
 
+app.use(requestMiddleware);
 //Habilitar observabilidad registrar si la peticion supero los escudos de seguridad
-app.use(pinoHttp({logger: Logger}));
+// Pinohttp con requestIdContext
+app.use(pinoHttp({
+    logger: Logger,
+    customLogLevel: (req: any, res: any) => {
+        if (res.statusCode >= 500) return 'error';
+        if (res.statusCode >= 400) return 'warn';
+        return 'info';
+    },
+    customSuccessMessage: (req: any, res: any) => {
+        return `${req.method} ${req.url} - ${res.statusCode}`;
+    }
+}));
 
 // Parseo de datos en JSON
 app.use(express.json());
@@ -93,6 +107,7 @@ app.put(
     productPutController.run.bind(productPutController)
 );
 
+
 // ==========================================
 // ¡AQUÍ VA EL MIDDLEWARE DE ERRORES!
 // Debe ir SIEMPRE después de las rutas.
@@ -103,11 +118,15 @@ app.use(ErrorHandler.handle);
 // 4. ARRANQUE DEL SERVIDOR DINÁMICO
 // ==========================================
 // Usamos el puerto validado desde nuestro objeto Config
-app.listen(appConfig.port, () => {
-    Logger.info(`Server is running at http://localhost:${appConfig.port}`);
-    Logger.info(`Environment: ${appConfig.nodeEnv}`);
+const server = app.listen(appConfig.port, () => {
+    Logger.info(`Server running on port ${appConfig.port}`);
 });
 
-app.get('/health', (_req, res) => {
-    res.status(200).json({ status: 'ok' });
+server.on('error', (err: any) => {
+    if (err.code === 'EADDRINUSE') {
+        Logger.error(`Port ${appConfig.port} already in use`);
+    } else {
+        Logger.error('Server error:', err);
+    }
+    process.exit(1);
 });

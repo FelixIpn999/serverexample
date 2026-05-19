@@ -9,6 +9,13 @@ resource "aws_secretsmanager_secret" "db_password" {
   name = "${var.app_name}--db-password-${var.environment}"
 }
 
+resource "aws_secretsmanager_secret_version" "db_password_version"{
+  secret_id = aws_secretsmanager_secret.db_password.id
+  secret_string = var.db_password_secret
+}
+
+
+
 # Definición de la "Caja Fuerte" (Task Definition)
 resource "aws_ecs_task_definition" "app_task" {
   family                   = "${var.app_name}-task-${var.environment}"
@@ -18,6 +25,7 @@ resource "aws_ecs_task_definition" "app_task" {
   memory                   = "512" # 512 MB RAM
 
   execution_role_arn = aws_iam_role.ecs_execution_role.arn
+  task_role_arn      = aws_iam_role.ecs_task_role.arn
 
   container_definitions = jsonencode([
     {
@@ -36,16 +44,10 @@ resource "aws_ecs_task_definition" "app_task" {
       environment = [
         { name = "NODE_ENV", value = "production" },
         { name = "PORT", value = "3000" },
-        { name = "LOG_LEVEL", value = "info" }
+        { name = "LOG_LEVEL", value = "info" },
+        {name= "DB_ENGINE", value= "dynamodb"}
       ]
 
-      # ¡La inyección del secreto desde AWS directamente a Node.js!
-      secrets = [
-        {
-          name      = "DB_PASSWORD"
-          valueFrom = aws_secretsmanager_secret.db_password.arn
-        }
-      ]
     }
   ])
 }
@@ -55,8 +57,16 @@ resource "aws_ecs_service" "app_service" {
   name            = "${var.app_name}-service-${var.environment}"
   cluster         = aws_ecs_cluster.app_cluster.id
   task_definition = aws_ecs_task_definition.app_task.arn
-  desired_count   = 1
+  desired_count   = var.environment == "dev" ? 1 : 2
   launch_type     = "FARGATE"
+  deployment_maximum_percent = 200
+  deployment_minimum_healthy_percent = 100
+  health_check_grace_period_seconds = 60
+
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
 
   load_balancer {
     target_group_arn = aws_lb_target_group.app_tg.arn
@@ -67,7 +77,7 @@ resource "aws_ecs_service" "app_service" {
   depends_on = [aws_lb_listener.http]
 
   network_configuration {
-    subnets          = [aws_subnet.public_a.id, aws_subnet.public_b.id]
+    subnets          = [aws_subnet.private_a.id, aws_subnet.private_b.id]
     security_groups  = [aws_security_group.fargate_sg.id]
     assign_public_ip = false
   }
