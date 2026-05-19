@@ -11,6 +11,7 @@ export class ProductCreator {
 
 
     // Usamos @inject('ProductRepository') porque ProductRepository es una interfaz
+    //Ejemplo de cambio
     constructor(
         @inject('ProductRepository') private repository: ProductRepository
     ) {}
