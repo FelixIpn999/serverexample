@@ -431,6 +431,28 @@ resource "aws_iam_policy" "github_actions_infra_policy" {
           "cloudwatch:DescribeAlarms"
         ]
         Resource = "*"
+      },
+      {
+        Sid    = "TerraformReadAllTemporary"
+        Effect = "Allow"
+        Action = [
+          "ec2:Describe*",
+          "ecs:Describe*",
+          "ecr:Describe*",
+          "ecr:List*",
+          "elasticloadbalancing:Describe*",
+          "dynamodb:Describe*",
+          "dynamodb:List*",
+          "iam:Get*",
+          "iam:List*",
+          "cloudwatch:Get*",
+          "cloudwatch:List*",
+          "cloudwatch:Describe*",
+          "secretsmanager:Describe*",
+          "secretsmanager:List*",
+          "logs:Describe*"
+        ]
+        Resource = "*"
       }
     ]
   })
