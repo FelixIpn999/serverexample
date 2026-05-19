@@ -252,6 +252,29 @@ resource "aws_iam_policy" "github_actions_infra_policy" {
         ]
       },
       {
+        Sid    = "CloudWatchDashboardRead"
+        Effect = "Allow"
+        Action = [
+          "cloudwatch:GetDashboard",
+          "cloudwatch:ListDashboards"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "DynamoDbReadBackups"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:DescribeContinuousBackups"
+        ]
+        Resource = "arn:aws:dynamodb:${var.aws_region}:*:table/${var.app_name}-*"
+      },
+      {
+        Sid    = "EcrListTags"
+        Effect = "Allow"
+        Action = ["ecr:ListTagsForResource"]
+        Resource = "arn:aws:ecr:${var.aws_region}:*:repository/${var.app_name}-*"
+      },
+      {
         Sid    = "DynamoDbStateBackend"
         Effect = "Allow"
         Action = [
@@ -282,7 +305,10 @@ resource "aws_iam_policy" "github_actions_infra_policy" {
           "ec2:AssociateRouteTable",
           "ec2:AllocateAddress",
           "ec2:CreateNatGateway",
-          "ec2:CreateSubnet"
+          "ec2:CreateSubnet",
+          "ec2:DescribeVpcAttribute",
+          "ec2:DescribeAvailabilityZones",
+          "ec2:DescribeAddresses"
         ]
         Resource = "*"
       },
@@ -297,7 +323,8 @@ resource "aws_iam_policy" "github_actions_infra_policy" {
           "ecs:RegisterTaskDefinition",
           "ecs:DescribeTaskDefinition",
           "ecs:ListTaskDefinitions",
-          "ecs:DescribeServices"
+          "ecs:DescribeServices",
+          "ecs:DescribeClusters"
         ]
         Resource = "*"
       },
@@ -322,7 +349,12 @@ resource "aws_iam_policy" "github_actions_infra_policy" {
           "iam:CreatePolicy",
           "iam:AttachRolePolicy",
           "iam:PutRolePolicy",
-          "iam:GetRolePolicy"
+          "iam:GetRolePolicy",
+          "iam:ListRolePolicies",
+          "iam:GetPolicy",
+          "iam:GetPolicyVersion",
+          "iam:ListOpenIDConnectProviders",
+          "iam:GetOpenIDConnectProvider"
         ]
         Resource = [
           "arn:aws:iam::*:role/${var.app_name}-*",
@@ -359,7 +391,8 @@ resource "aws_iam_policy" "github_actions_infra_policy" {
         Action = [
           "secretsmanager:CreateSecret",
           "secretsmanager:GetSecretValue",
-          "secretsmanager:DescribeSecret"
+          "secretsmanager:DescribeSecret",
+          "secretsmanager:GetResourcePolicy"
         ]
         Resource = "arn:aws:secretsmanager:${var.aws_region}:*:secret:${var.app_name}-*"
       },
