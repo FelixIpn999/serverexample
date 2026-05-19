@@ -120,8 +120,10 @@ resource "aws_iam_role" "github_actions_app_role" {
       Action = "sts:AssumeRoleWithWebIdentity"
       Condition = {
         StringEquals = {
-          "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
           "token.actions.githubusercontent.com:sub" = local.github_sub
+        }
+        StringLike = {
+          "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
         }
       }
     }]
@@ -142,8 +144,10 @@ resource "aws_iam_role" "github_actions_infra_role" {
       Action = "sts:AssumeRoleWithWebIdentity"
       Condition = {
         StringEquals = {
-          "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
           "token.actions.githubusercontent.com:sub" = local.github_sub
+        }
+        StringLike = {
+          "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
         }
       }
     }]
