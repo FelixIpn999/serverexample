@@ -310,8 +310,16 @@ resource "aws_iam_policy" "github_actions_infra_policy" {
           "ec2:DescribeAvailabilityZones",
           "ec2:DescribeAddresses",
           "ec2:DescribeInternetGateways",
-          "ec2:DescribeAddressesAttribute"
+          "ec2:DescribeAddressesAttribute",
+          "ec2:DescribeRouteTables",
+          "ec2:DescribeNatGateways"
         ]
+        Resource = "*"
+      },
+      {
+        Sid    = "IamOidcRead"
+        Effect = "Allow"
+        Action = ["iam:ListOpenIDConnectProviders"]
         Resource = "*"
       },
       {
