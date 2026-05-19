@@ -442,7 +442,8 @@ resource "aws_iam_policy" "github_actions_infra_policy" {
         Action = [
           "logs:CreateLogGroup",
           "logs:CreateLogStream",
-          "logs:DescribeLogGroups"
+          "logs:DescribeLogGroups",
+          "logs:ListTagsForResource"
         ]
         Resource = "arn:aws:logs:${var.aws_region}:*:*"
       },
