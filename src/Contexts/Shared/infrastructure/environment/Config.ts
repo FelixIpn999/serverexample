@@ -36,6 +36,7 @@ public static load() : Config {
         nodeEnv: process.env.NODE_ENV || 'development',
         logLevel: process.env.LOG_LEVEL || 'info',
         dbEngine: process.env.DB_ENGINE || 'memory',
+        corsOrigin: process.env.CORS_ORIGIN || '*'
     };
 
     // Transformamos el objeto plano en una instancia de Config
