@@ -213,6 +213,7 @@ resource "aws_iam_policy" "github_actions_app_policy" {
         Sid    = "EcsDeployActions"
         Effect = "Allow"
         Action = [
+          "ecs:ListServices",
           "ecs:DescribeTaskDefinition",
           "ecs:RegisterTaskDefinition",
           "ecs:DescribeServices",
