@@ -7,14 +7,14 @@ on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: "Image tag to deploy (default: SHA del evento)"
+        description: "Image tag to deploy (optional; defaults to SHA)"
         required: false
       task_memory:
-        description: "Task memory (MB), ejemplo: 1024"
+        description: "Task memory (MB), example: 1024"
         required: true
         default: "1024"
       task_cpu:
-        description: "Task CPU units, ejemplo: 512"
+        description: "Task CPU units, example: 512"
         required: true
         default: "512"
 
@@ -53,29 +53,55 @@ jobs:
 
       - name: Build Ansible extra vars file
         run: |
-          cat > extra-vars.json << 'EOF'
-          {
-            "aws_region": "${{ vars.AWS_REGION }}",
-            "ecs_cluster_name": "${{ vars.ECS_CLUSTER_NAME }}",
-            "ecs_service_name": "${{ vars.ECS_SERVICE_NAME }}",
-            "ecs_task_family": "${{ vars.ECS_TASK_FAMILY }}",
-            "ecs_container_name": "${{ vars.ECS_CONTAINER_NAME }}",
-            "ecs_image_repository": "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/${{ vars.ECR_REPOSITORY }}",
-            "ecs_image_tag": "${{ steps.meta.outputs.image_tag }}",
-            "ecs_task_cpu": "${{ github.event.inputs.task_cpu || '512' }}",
-            "ecs_task_memory": "${{ github.event.inputs.task_memory || '1024' }}",
-            "ecs_container_cpu": ${{ github.event.inputs.task_cpu || '512' }},
-            "ecs_container_memory": ${{ github.event.inputs.task_memory || '1024' }},
-            "ecs_container_port": 3000,
-            "ecs_execution_role_arn": "${{ vars.ECS_EXECUTION_ROLE_ARN }}",
-            "ecs_task_role_arn": "${{ vars.ECS_TASK_ROLE_ARN }}",
-            "ecs_log_group": "${{ vars.ECS_LOG_GROUP }}",
-            "ecs_log_stream_prefix": "${{ vars.ECS_LOG_STREAM_PREFIX }}",
-            "ecs_environment_json": "${{ vars.ECS_ENV_VARS_JSON }}",
-            "ecs_secrets_json": "${{ vars.ECS_SECRETS_JSON }}",
-            "audit_log_dir": "artifacts"
-          }
-          EOF
+          ENV_JSON='${{ vars.ECS_ENV_VARS_JSON }}'
+          SECRETS_JSON='${{ vars.ECS_SECRETS_JSON }}'
+
+          [ -z "$ENV_JSON" ] && ENV_JSON='[]'
+          [ -z "$SECRETS_JSON" ] && SECRETS_JSON='[]'
+
+          jq -n \
+            --arg aws_region "${{ vars.AWS_REGION }}" \
+            --arg ecs_cluster_name "${{ vars.ECS_CLUSTER_NAME }}" \
+            --arg ecs_service_name "${{ vars.ECS_SERVICE_NAME }}" \
+            --arg ecs_task_family "${{ vars.ECS_TASK_FAMILY }}" \
+            --arg ecs_container_name "${{ vars.ECS_CONTAINER_NAME }}" \
+            --arg ecs_image_repository "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/${{ vars.ECR_REPOSITORY }}" \
+            --arg ecs_image_tag "${{ steps.meta.outputs.image_tag }}" \
+            --arg ecs_task_cpu "${{ github.event.inputs.task_cpu || '512' }}" \
+            --arg ecs_task_memory "${{ github.event.inputs.task_memory || '1024' }}" \
+            --argjson ecs_container_cpu ${{ github.event.inputs.task_cpu || '512' }} \
+            --argjson ecs_container_memory ${{ github.event.inputs.task_memory || '1024' }} \
+            --argjson ecs_container_port 3000 \
+            --arg ecs_execution_role_arn "${{ vars.ECS_EXECUTION_ROLE_ARN }}" \
+            --arg ecs_task_role_arn "${{ vars.ECS_TASK_ROLE_ARN }}" \
+            --arg ecs_log_group "${{ vars.ECS_LOG_GROUP }}" \
+            --arg ecs_log_stream_prefix "${{ vars.ECS_LOG_STREAM_PREFIX }}" \
+            --arg ecs_environment_json "$ENV_JSON" \
+            --arg ecs_secrets_json "$SECRETS_JSON" \
+            --arg audit_log_dir "artifacts" \
+            '{
+              aws_region: $aws_region,
+              ecs_cluster_name: $ecs_cluster_name,
+              ecs_service_name: $ecs_service_name,
+              ecs_task_family: $ecs_task_family,
+              ecs_container_name: $ecs_container_name,
+              ecs_image_repository: $ecs_image_repository,
+              ecs_image_tag: $ecs_image_tag,
+              ecs_task_cpu: $ecs_task_cpu,
+              ecs_task_memory: $ecs_task_memory,
+              ecs_container_cpu: $ecs_container_cpu,
+              ecs_container_memory: $ecs_container_memory,
+              ecs_container_port: $ecs_container_port,
+              ecs_execution_role_arn: $ecs_execution_role_arn,
+              ecs_task_role_arn: $ecs_task_role_arn,
+              ecs_log_group: $ecs_log_group,
+              ecs_log_stream_prefix: $ecs_log_stream_prefix,
+              ecs_environment_json: $ecs_environment_json,
+              ecs_secrets_json: $ecs_secrets_json,
+              audit_log_dir: $audit_log_dir
+            }' > extra-vars.json
+
+          jq . extra-vars.json
 
       - name: Install Ansible and AWS SDK
         run: |
