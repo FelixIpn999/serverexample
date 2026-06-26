@@ -1,0 +1,32 @@
+aws_region: "us-east-1"
+
+ecs_cluster_name: ""
+ecs_service_name: ""
+ecs_task_family: ""
+
+ecs_container_name: "inventory-api-container"
+ecs_image_repository: ""
+ecs_image_tag: ""
+
+# Fargate task-level CPU/memory
+ecs_task_cpu: "512"
+ecs_task_memory: "1024"
+
+# Container-level CPU/memory
+ecs_container_cpu: 512
+ecs_container_memory: 1024
+ecs_container_port: 3000
+
+ecs_execution_role_arn: ""
+ecs_task_role_arn: ""
+
+ecs_log_group: ""
+ecs_log_stream_prefix: "ecs"
+
+# Se pasan como JSON desde pipeline:
+# ecs_environment_json='[{"name":"NODE_ENV","value":"production"}]'
+# ecs_secrets_json='[{"name":"DB_PASSWORD","valueFrom":"arn:aws:secretsmanager:..."}]'
+ecs_environment_json: "[]"
+ecs_secrets_json: "[]"
+
+audit_log_dir: "artifacts"

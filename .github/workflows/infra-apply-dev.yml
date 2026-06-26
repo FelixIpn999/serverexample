@@ -1,3 +1,4 @@
+# .github/workflows/infra-apply-dev.yml
 name: infra-apply-dev
 on:
   push:
@@ -59,3 +60,44 @@ jobs:
 
       - name: Apply Terraform changes
         run: terraform apply tfplan
+
+  sync-ecs-vars:
+    needs: terraform-apply
+    runs-on: ubuntu-latest
+    environment: dev
+    permissions:
+      id-token: write
+      contents: read
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: "${{ secrets.AWS_ROLE_ARN_INFRA }}"
+          aws-region: "${{ vars.AWS_REGION }}"
+
+      - name: Sync ECS_ENV_VARS_JSON and ECS_SECRETS_JSON
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TASK_FAMILY: ${{ vars.ECS_TASK_FAMILY }}
+          CONTAINER_NAME: ${{ vars.ECS_CONTAINER_NAME }}
+          TARGET_ENV: ${{ vars.ENVIRONMENT }}
+        run: |
+          set -euo pipefail
+
+          CONTAINERS_JSON=$(aws ecs describe-task-definition \
+            --task-definition "$TASK_FAMILY" \
+            --query 'taskDefinition.containerDefinitions' \
+            --output json)
+
+          ECS_ENV_VARS_JSON=$(echo "$CONTAINERS_JSON" | jq -c --arg c "$CONTAINER_NAME" \
+            'map(select(.name==$c))[0].environment // []')
+
+          ECS_SECRETS_JSON=$(echo "$CONTAINERS_JSON" | jq -c --arg c "$CONTAINER_NAME" \
+            'map(select(.name==$c))[0].secrets // []')
+
+          gh variable set ECS_ENV_VARS_JSON --env "$TARGET_ENV" --body "$ECS_ENV_VARS_JSON"
+          gh variable set ECS_SECRETS_JSON --env "$TARGET_ENV" --body "$ECS_SECRETS_JSON"
+
+          echo "Synced variables in environment: $TARGET_ENV"
