@@ -5,13 +5,25 @@ on:
     workflows: ["app-build-push-dev"]
     types: [completed]
   workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy (default: SHA del evento)"
+        required: false
+      task_memory:
+        description: "Task memory (MB), ejemplo: 1024"
+        required: true
+        default: "1024"
+      task_cpu:
+        description: "Task CPU units, ejemplo: 512"
+        required: true
+        default: "512"
 
 concurrency:
   group: app-rollout-dev
   cancel-in-progress: true
 
 jobs:
-  deploy-ecs:
+  deploy-ecs-with-ansible:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     environment: dev
@@ -20,124 +32,67 @@ jobs:
       contents: read
 
     steps:
+      - uses: actions/checkout@v4
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: "${{ secrets.AWS_ROLE_ARN_APP }}"
           aws-region: "${{ vars.AWS_REGION }}"
 
-      - name: Resolve image uri from triggering commit
-        id: image
-        env:
-          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-          AWS_REGION: ${{ vars.AWS_REGION }}
-          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+      - name: Resolve image tag
+        id: meta
         run: |
-          if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            IMAGE_TAG=${{ github.event.workflow_run.head_sha }}
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.image_tag }}" ]; then
+            IMAGE_TAG="${{ github.event.inputs.image_tag }}"
+          elif [ "${{ github.event_name }}" = "workflow_run" ]; then
+            IMAGE_TAG="${{ github.event.workflow_run.head_sha }}"
           else
-            IMAGE_TAG=${GITHUB_SHA}
+            IMAGE_TAG="${GITHUB_SHA}"
           fi
-          IMAGE_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG
-          echo "image_uri=$IMAGE_URI" >> $GITHUB_OUTPUT
+          echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
 
-      - name: Download current task definition
-        id: current-task
+      - name: Build Ansible extra vars file
         run: |
-          CURRENT_TASK_DEF=$(aws ecs describe-task-definition \
-            --task-definition "${{ vars.ECS_TASK_FAMILY }}" \
-            --query "taskDefinition.taskDefinitionArn" \
-            --output text)
-          aws ecs describe-task-definition \
-            --task-definition "$CURRENT_TASK_DEF" \
-            --query taskDefinition > taskdef.json
-          echo "old_task_def_arn=$CURRENT_TASK_DEF" >> $GITHUB_OUTPUT
+          cat > extra-vars.json << 'EOF'
+          {
+            "aws_region": "${{ vars.AWS_REGION }}",
+            "ecs_cluster_name": "${{ vars.ECS_CLUSTER_NAME }}",
+            "ecs_service_name": "${{ vars.ECS_SERVICE_NAME }}",
+            "ecs_task_family": "${{ vars.ECS_TASK_FAMILY }}",
+            "ecs_container_name": "${{ vars.ECS_CONTAINER_NAME }}",
+            "ecs_image_repository": "${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/${{ vars.ECR_REPOSITORY }}",
+            "ecs_image_tag": "${{ steps.meta.outputs.image_tag }}",
+            "ecs_task_cpu": "${{ github.event.inputs.task_cpu || '512' }}",
+            "ecs_task_memory": "${{ github.event.inputs.task_memory || '1024' }}",
+            "ecs_container_cpu": ${{ github.event.inputs.task_cpu || '512' }},
+            "ecs_container_memory": ${{ github.event.inputs.task_memory || '1024' }},
+            "ecs_container_port": 3000,
+            "ecs_execution_role_arn": "${{ vars.ECS_EXECUTION_ROLE_ARN }}",
+            "ecs_task_role_arn": "${{ vars.ECS_TASK_ROLE_ARN }}",
+            "ecs_log_group": "${{ vars.ECS_LOG_GROUP }}",
+            "ecs_log_stream_prefix": "${{ vars.ECS_LOG_STREAM_PREFIX }}",
+            "ecs_environment_json": "${{ vars.ECS_ENV_VARS_JSON }}",
+            "ecs_secrets_json": "${{ vars.ECS_SECRETS_JSON }}",
+            "audit_log_dir": "artifacts"
+          }
+          EOF
 
-      - name: Render next task definition
-        env:
-          IMAGE_URI: ${{ steps.image.outputs.image_uri }}
-          CONTAINER_NAME: ${{ vars.ECS_CONTAINER_NAME }}
+      - name: Install Ansible and AWS SDK
         run: |
-          jq --arg IMAGE "$IMAGE_URI" --arg CONTAINER "$CONTAINER_NAME" '
-            .containerDefinitions |= map(
-              if .name == $CONTAINER then .image = $IMAGE else . end
-            )
-            | del(
-                .taskDefinitionArn,
-                .revision,
-                .status,
-                .requiresAttributes,
-                .compatibilities,
-                .registeredAt,
-                .registeredBy
-              )
-          ' taskdef.json > taskdef-rendered.json
+          python -m pip install --upgrade pip
+          pip install "ansible>=9.0.0" boto3 botocore
+          ansible-galaxy collection install -r ansible/requirements.yml
 
-      - name: Register task definition
-        id: register
+      - name: Run Ansible rollout
         run: |
-          TASK_DEF_ARN=$(aws ecs register-task-definition \
-            --cli-input-json file://taskdef-rendered.json \
-            --query "taskDefinition.taskDefinitionArn" \
-            --output text)
-          echo "task_def_arn=$TASK_DEF_ARN" >> $GITHUB_OUTPUT
-          echo "old_task_def_arn=${{ steps.current-task.outputs.old_task_def_arn }}" >> $GITHUB_OUTPUT
+          ansible-playbook \
+            -i ansible/inventory/hosts.yml \
+            ansible/playbooks/update-ecs.yml \
+            --extra-vars "@extra-vars.json"
 
-      - name: Update ECS service
-        run: |
-          aws ecs update-service \
-            --cluster "${{ vars.ECS_CLUSTER_NAME }}" \
-            --service "${{ vars.ECS_SERVICE_NAME }}" \
-            --task-definition "${{ steps.register.outputs.task_def_arn }}" \
-            --force-new-deployment
-
-      - name: Wait for service stable
-        run: |
-          aws ecs wait services-stable \
-            --cluster "${{ vars.ECS_CLUSTER_NAME }}" \
-            --services "${{ vars.ECS_SERVICE_NAME }}"
-      - name: Get ALB DNS
-        id: get-alb-dns
-        run: |
-          ALB_DNS=$(aws elbv2 describe-load-balancers \
-            --names "${{ vars.ALB_NAME }}" \
-            --query "LoadBalancers[0].DNSName" \
-            --output text)
-          echo "alb_dns=$ALB_DNS" >> $GITHUB_OUTPUT
-
-      # *** SMOKE TEST ***
-      - name: Run smoke test
-        id: smoke
-        env:
-          ALB_DNS: ${{ steps.get-alb-dns.outputs.alb_dns }}
-        run: |
-          echo "Testing health endpoint..."
-          for i in {1..30}; do
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://$ALB_DNS/health)
-            if [ "$HTTP_CODE" = "200" ]; then
-              echo "✓ Health check passed"
-              exit 0
-            fi
-            echo "Attempt $i: HTTP $HTTP_CODE, retrying..."
-            sleep 5
-          done
-          echo "✗ Health check failed after retries"
-          exit 1
-
-      # *** ROLLBACK SI SMOKE FALLA ***
-      - name: Rollback on smoke test failure
-        if: failure() && steps.smoke.outcome == 'failure'
-        env:
-          OLD_TASK_DEF_ARN: ${{ steps.register.outputs.old_task_def_arn }}
-        run: |
-          echo "Smoke test failed, rolling back..."
-          aws ecs update-service \
-            --cluster "${{ vars.ECS_CLUSTER_NAME }}" \
-            --service "${{ vars.ECS_SERVICE_NAME }}" \
-            --task-definition "$OLD_TASK_DEF_ARN" \
-            --force-new-deployment
-
-          aws ecs wait services-stable \
-            --cluster "${{ vars.ECS_CLUSTER_NAME }}" \
-            --services "${{ vars.ECS_SERVICE_NAME }}"
-
-          echo "Rollback completed"
+      - name: Upload audit logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ecs-audit-logs-${{ github.run_id }}
+          path: artifacts/*.json

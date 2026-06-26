@@ -1,0 +1,20 @@
+{
+  "timestamp_utc": "{{ ansible_date_time.iso8601 }}",
+  "actor": "{{ lookup('env', 'GITHUB_ACTOR') | default('ansible-operator', true) }}",
+  "aws_region": "{{ aws_region }}",
+  "ecs_cluster_name": "{{ ecs_cluster_name }}",
+  "ecs_service_name": "{{ ecs_service_name }}",
+  "task_family": "{{ ecs_task_family }}",
+  "previous_task_definition_arn": "{{ old_task_definition_arn }}",
+  "new_task_definition_arn": "{{ new_task_definition_arn }}",
+  "container_name": "{{ ecs_container_name }}",
+  "image": "{{ ecs_image_repository }}:{{ ecs_image_tag }}",
+  "task_cpu": "{{ ecs_task_cpu }}",
+  "task_memory": "{{ ecs_task_memory }}",
+  "container_cpu": {{ ecs_container_cpu }},
+  "container_memory": {{ ecs_container_memory }},
+  "environment": {{ ecs_environment | to_nice_json }},
+  "secrets": {{ ecs_secrets | to_nice_json }},
+  "task_definition_changed": {{ (ecs_td_result.changed | default(false)) | to_json }},
+  "service_updated": {{ (ecs_service_result.changed | default(false)) | to_json }}
+}

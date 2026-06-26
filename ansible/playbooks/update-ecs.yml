@@ -1,0 +1,9 @@
+- name: Update ECS task definition and deploy new revision
+  hosts: localhost
+  gather_facts: true
+  collections:
+    - amazon.aws
+  vars_files:
+    - ../roles/ecs_operational_update/vars/main.yml
+  roles:
+    - ecs_operational_update
