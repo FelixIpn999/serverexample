@@ -42,8 +42,7 @@
     region: "{{ aws_region }}"
     family: "{{ ecs_task_family }}"
     network_mode: awsvpc
-    requires_compatibilities:
-      - FARGATE
+    launch_type: FARGATE
     execution_role_arn: "{{ ecs_execution_role_arn }}"
     task_role_arn: "{{ ecs_task_role_arn }}"
     cpu: "{{ ecs_task_cpu }}"
