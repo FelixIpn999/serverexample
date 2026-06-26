@@ -24,9 +24,7 @@ ecs_log_group: ""
 ecs_log_stream_prefix: "ecs"
 
 # Se pasan como JSON desde pipeline:
-# ecs_environment_json='[{"name":"NODE_ENV","value":"production"}]'
-# ecs_secrets_json='[{"name":"DB_PASSWORD","valueFrom":"arn:aws:secretsmanager:..."}]'
-ecs_environment_json: "[]"
-ecs_secrets_json: "[]"
+ecs_environment: []
+ecs_secrets: []
 
 audit_log_dir: "artifacts"

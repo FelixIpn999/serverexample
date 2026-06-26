@@ -13,10 +13,6 @@
       - ecs_log_group | length > 0
     fail_msg: "Missing required ECS variables."
 
-- name: Parse environment and secrets JSON
-  ansible.builtin.set_fact:
-    ecs_environment: "{{ ecs_environment_json | from_json }}"
-    ecs_secrets: "{{ ecs_secrets_json | from_json }}"
 
 - name: Ensure audit log directory exists
   ansible.builtin.file:
