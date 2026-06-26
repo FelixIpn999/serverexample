@@ -21,7 +21,7 @@
     mode: "0750"
 
 - name: Get current ECS service state (for audit baseline)
-  amazon.aws.ecs_service_info:
+  community.aws.ecs_service_info:
     region: "{{ aws_region }}"
     cluster: "{{ ecs_cluster_name }}"
     services:
