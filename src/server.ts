@@ -19,6 +19,7 @@ import { Config } from './Contexts/Shared/infrastructure/environment/Config';
 // IMPORTA EL ERROR HANDLER AQUÍ
 import { ErrorHandler } from './Contexts/Shared/infrastructure/middlewares/ErrorHandler';
 
+//Comentario
 // ==========================================
 // 1. CARGA Y VALIDACIÓN DE CONFIGURACIÓN
 // ==========================================
