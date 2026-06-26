@@ -82,7 +82,7 @@ jobs:
 
       - name: Sync ECS_ENV_VARS_JSON and ECS_SECRETS_JSON
         env:
-          GH_TOKEN: ${{ secrets.GH_VARIABLES_TOKEN }}
+          GH_TOKEN: ${{ secrets.GHVARIABLESTOKEN }}
           TASK_FAMILY: ${{ vars.ECS_TASK_FAMILY }}
           CONTAINER_NAME: ${{ vars.ECS_CONTAINER_NAME }}
           TARGET_ENV: ${{ vars.ENVIRONMENT }}
