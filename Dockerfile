@@ -6,6 +6,7 @@ FROM node:20-alpine AS builder
 #Directorio de trabajo
 WORKDIR /app
 
+#prueba
 # Copiar package.json y package-lock.json
 COPY package*.json ./
 
