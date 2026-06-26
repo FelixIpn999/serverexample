@@ -33,7 +33,7 @@
     old_task_definition_arn: "{{ current_service_info.services[0].taskDefinition | default('unknown') }}"
 
 - name: Register new ECS task definition revision
-  amazon.aws.ecs_taskdefinition:
+  community.aws.ecs_taskdefinition:
     state: present
     region: "{{ aws_region }}"
     family: "{{ ecs_task_family }}"
@@ -74,7 +74,7 @@
       }}
 
 - name: Update ECS service to new task definition
-  amazon.aws.ecs_service:
+  community.aws.ecs_service:
     state: present
     region: "{{ aws_region }}"
     cluster: "{{ ecs_cluster_name }}"
