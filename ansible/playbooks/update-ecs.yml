@@ -3,6 +3,7 @@
   gather_facts: true
   collections:
     - amazon.aws
+    - community.aws
   vars_files:
     - ../roles/ecs_operational_update/vars/main.yml
   roles:
