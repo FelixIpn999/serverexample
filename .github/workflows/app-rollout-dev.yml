@@ -83,7 +83,7 @@ jobs:
             --arg ecs_log_stream_prefix "${{ vars.ECS_LOG_STREAM_PREFIX }}" \
             --argjson ecs_environment "$ENV_JSON" \
             --argjson ecs_secrets "$SECRETS_JSON" \
-            --arg audit_log_dir "artifacts" \
+            --arg audit_log_dir "${{ github.workspace }}/artifacts" \
             '{
               aws_region: $aws_region,
               ecs_cluster_name: $ecs_cluster_name,
@@ -116,14 +116,21 @@ jobs:
 
       - name: Run Ansible rollout
         run: |
-         ANSIBLE_ROLES_PATH=ansible/roles ansible-playbook \
-          -i ansible/inventory/hosts.yml \
-          ansible/playbooks/update-ecs.yml \
-          --extra-vars "@extra-vars.json"
+          ANSIBLE_ROLES_PATH=ansible/roles ansible-playbook \
+            -i ansible/inventory/hosts.yml \
+            ansible/playbooks/update-ecs.yml \
+            --extra-vars "@extra-vars.json"
+
+      - name: List audit files
+        if: always()
+        run: |
+          find "${{ github.workspace }}" -maxdepth 5 -type f -name "ecs-update-*.json" || true
+          ls -la "${{ github.workspace }}/artifacts" || true
 
       - name: Upload audit logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ecs-audit-logs-${{ github.run_id }}
-          path: artifacts/*.json
+          path: ${{ github.workspace }}/artifacts/*.json
+          if-no-files-found: warn
