@@ -1,5 +1,6 @@
 # .github/workflows/infra-apply-dev.yml
 name: infra-apply-dev
+
 on:
   push:
     branches: [main]
@@ -23,9 +24,11 @@ jobs:
         working-directory: terraform
     steps:
       - uses: actions/checkout@v4
+
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.8.5"
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: "${{ secrets.AWS_ROLE_ARN_INFRA }}"
@@ -79,19 +82,19 @@ jobs:
 
       - name: Sync ECS_ENV_VARS_JSON and ECS_SECRETS_JSON
         env:
-          GH_TOKEN: ${{ secrets.GHVARIABLESTOKEN }}
+          GH_TOKEN: ${{ secrets.GH_VARIABLES_TOKEN }}
           TASK_FAMILY: ${{ vars.ECS_TASK_FAMILY }}
           CONTAINER_NAME: ${{ vars.ECS_CONTAINER_NAME }}
           TARGET_ENV: ${{ vars.ENVIRONMENT }}
         run: |
           set -euo pipefail
-          
+
           if [ -z "${GH_TOKEN:-}" ]; then
-          echo "GH_TOKEN is empty. Check environment secret GH_VARIABLES_TOKEN."
-          exit 1
+            echo "GH_TOKEN is empty. Check environment secret GH_VARIABLES_TOKEN."
+            exit 1
           fi
 
-         gh auth status
+          gh auth status
 
           CONTAINERS_JSON=$(aws ecs describe-task-definition \
             --task-definition "$TASK_FAMILY" \
