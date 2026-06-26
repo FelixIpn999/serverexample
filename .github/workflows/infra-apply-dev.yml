@@ -85,6 +85,13 @@ jobs:
           TARGET_ENV: ${{ vars.ENVIRONMENT }}
         run: |
           set -euo pipefail
+          
+          if [ -z "${GH_TOKEN:-}" ]; then
+          echo "GH_TOKEN is empty. Check environment secret GH_VARIABLES_TOKEN."
+          exit 1
+          fi
+
+         gh auth status
 
           CONTAINERS_JSON=$(aws ecs describe-task-definition \
             --task-definition "$TASK_FAMILY" \
