@@ -116,10 +116,10 @@ jobs:
 
       - name: Run Ansible rollout
         run: |
-          ansible-playbook \
-            -i ansible/inventory/hosts.yml \
-            ansible/playbooks/update-ecs.yml \
-            --extra-vars "@extra-vars.json"
+         ANSIBLE_ROLES_PATH=ansible/roles ansible-playbook \
+          -i ansible/inventory/hosts.yml \
+          ansible/playbooks/update-ecs.yml \
+          --extra-vars "@extra-vars.json"
 
       - name: Upload audit logs
         if: always()
